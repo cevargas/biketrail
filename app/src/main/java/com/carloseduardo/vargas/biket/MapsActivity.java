@@ -10,6 +10,8 @@ import android.location.LocationManager;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.util.Log;
+import android.widget.Toast;
 
 import com.carloseduardo.vargas.biket.dao.PercursoDAO;
 import com.carloseduardo.vargas.biket.dao.RotaDAO;
@@ -23,10 +25,15 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
+
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+/**
+ * Classe Activity de mapeamento da rota
+ * Persiste o percurso no BD
+ */
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
     public static final String TAG = MapsActivity.class.getSimpleName();
@@ -66,7 +73,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 gMap.setMyLocationEnabled(true);
 
             lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-            lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 10000, 0, new LocationListener() {
+            lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 0, new LocationListener() {
                 @Override
                 public void onLocationChanged(Location location) {
                     LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
@@ -76,47 +83,67 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     //salva referencia do percurso
                     savePercurso(location);
                 }
+
                 @Override
                 public void onProviderDisabled(String provider) {
-
+                    Log.d(TAG, "onProviderDisabled");
+                    Toast.makeText(
+                            getApplicationContext(),
+                            "GPS está inativo.",
+                            Toast.LENGTH_LONG).show();
                 }
+
                 @Override
                 public void onProviderEnabled(String provider) {
-
+                    Log.d(TAG, "onProviderEnabled");
                 }
+
                 @Override
                 public void onStatusChanged(String provider, int status, Bundle extras) {
-
+                    Log.d(TAG, "onStatusChanged");
                 }
             });
 
-            myLocation = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-
-            if (myLocation == null) {
-                Criteria criteria = new Criteria();
-                criteria.setAccuracy(Criteria.ACCURACY_COARSE);
-                String provider = lm.getBestProvider(criteria, true);
-                myLocation = lm.getLastKnownLocation(provider);
-            }
+            myLocation = getLastKnownLocation();
 
             if (myLocation != null) {
                 LatLng userLocation = new LatLng(myLocation.getLatitude(), myLocation.getLongitude());
                 gMap.animateCamera(CameraUpdateFactory.newLatLngZoom(userLocation, 14), 1500, null);
+
+                //add marcador inicial no mapa
+                //addMarker();
+
+                //salva referencia da rota
+                saveRota();
             }
-
-            //add marcador inicial no mapa
-            //addMarker();
-
-            //salva referencia da rota
-            saveRota();
         }
+    }
+
+    private Location getLastKnownLocation() {
+        lm = (LocationManager) getApplicationContext().getSystemService(LOCATION_SERVICE);
+        List<String> providers = lm.getProviders(true);
+        Location bestLocation = null;
+        for (String provider : providers) {
+            if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+
+            }
+            Location l = lm.getLastKnownLocation(provider);
+            if (l == null) {
+                continue;
+            }
+            if (bestLocation == null || l.getAccuracy() < bestLocation.getAccuracy()) {
+                // Found best last known location: %s", l);
+                bestLocation = l;
+            }
+        }
+        return bestLocation;
     }
 
     private void redrawLine(){
         //clears all Markers and Polylines
         gMap.clear();
 
-        PolylineOptions options = new PolylineOptions().width(5).color(Color.BLUE).geodesic(true);
+        PolylineOptions options = new PolylineOptions().width(10).color(Color.CYAN).geodesic(true);
         for (int i = 0; i < points.size(); i++) {
             LatLng point = points.get(i);
             options.add(point);

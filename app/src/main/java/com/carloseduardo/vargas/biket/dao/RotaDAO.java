@@ -96,6 +96,52 @@ public class RotaDAO {
         return rotasList;
     }
 
+    public Rota getRotaById(Long id){
+
+        Rota rota = new Rota();
+        SQLiteDatabase db = DBHelper.getInstance(context).getReadableDatabase();
+        Cursor cursor = null;
+
+        try {
+
+            String query = "SELECT * FROM " + TABELA + " WHERE " + ID + "=" + id;
+            Log.d("query", query);
+            cursor = db.rawQuery(query, null);
+
+            if(cursor.moveToNext()) {
+
+                rota.setId(cursor.getLong(cursor.getColumnIndex(ID)));
+                String data = cursor.getString(cursor.getColumnIndex(DATA));
+                if(data != null) {
+                    rota.setData(Utils.dbStringToDateForDb(data));
+                }
+                String dataSync = cursor.getString(cursor.getColumnIndex(DH_SINCRONIZADO));
+                if(dataSync != null) {
+                    rota.setDataHoraSync(Utils.dbStringToDateForDb(dataSync));
+                }
+
+                rota.setEndLatitude((double) cursor.getColumnIndex(END_LATITUDE));
+                rota.setEndLongitude((double) cursor.getColumnIndex(END_LONGITUDE));
+                rota.setSituacao(cursor.getInt(cursor.getColumnIndex(SITUACAO)));
+                rota.setStartLatitude((double) cursor.getColumnIndex(START_LATITUDE));
+                rota.setStartLongitude((double) cursor.getColumnIndex(START_LONGITUDE));
+                rota.setTotalPercurso((double) cursor.getColumnIndex(TOTAL_PERCURSO));
+
+                boolean sync = cursor.getInt(cursor.getColumnIndex(SINCRONIZADO)) > 0;
+                rota.setSync(sync);
+
+            }
+        } catch (SQLiteException e) {
+            Log.d(TAG, e.getMessage());
+        } finally {
+            if(cursor != null && !cursor.isClosed()){
+                cursor.close();
+            }
+        }
+
+        return rota;
+    }
+
     public void delete() {
         SQLiteDatabase db = DBHelper.getInstance(context).getReadableDatabase();
         db.execSQL("DELETE FROM " + RotaDAO.TABELA);
